@@ -33,5 +33,3 @@ like:
 - a virtual layer that i can test on real hardware easier, load up the loader-rom, select a file from the ftp server, load that into memory, when the loaded rom exits you get back into the virtual layer
 
 - save does not seem to work on target hardware, i should add a logs tab in setting, ndsfetch could push the latest logs to the httpserver
-
-- the codebase is getting kind of big for what it does, but im doing lot of it from scratch, maybe porting to c++ could help some
