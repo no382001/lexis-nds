@@ -53,3 +53,13 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+data/
+build/
+*.o
+*.nds
+romfs/
+*.sav
+scripts/__pycache__/
+sdcard.img
+sdcard.img.idx

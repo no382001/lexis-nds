@@ -1,0 +1,37 @@
+- if some of the words have the same form, just list the possible ones, dont show each word again and again - i think this is already done in the normalization step, but double check - its not
+
+[x] add stats after the flatdb generation about the amount of words that dont have definitions
+[x] enable all warnings -Werror too
+
+[x] there should be a way to fast-track to Hom.Il.5.15 or something so i will need a keyboard, and i can use this to add custom entries for words - partially done - i will still need a kb
+
+[~] look at nitrous tracker a bit more, their ui-s look to be hand crafted, they look very good - looks better - but a 16 bit diacritical greek font would look better. pillow render is fine for now
+
+[~] rethink the renderer, its snappy sometimes i can see the scanlines, idk if they are laggy just in the simulation, but a flowing kind of scrolling is what i want to go for - render to the bg? also use glyphs and 16 bit diacritic greek font?
+
+- think about modularity, most things should be generated , right now the iliad is the only target, but the system should be ready, c11 has static asserts, and get rid of all magic numbers
+
+[x] multiple files, some files are getting too big, hacked together code with few patterns
+
+[x] eventually i will want to draw, how do i compact that?
+- there should be a lasso tool that removes the drawings that it hits
+
+- maybe a spashscreen of a scan of the iliad
+
+- i will never need it but put reserved space in the sav file
+
+[x] add clang format
+
+- version number, title and info about the rom should be in a yaml file, added to the makefile upon building, and compiled into the info parts of the program
+like:
+    rom_title: Reader v0.0.1 (dev)
+    corpus: Homer, Iliad
+    annotation: Hom. Il.
+
+- experiment with non-snap scrolling, add a way to scroll much faster, maybe remap the bumpers for this
+
+- a virtual layer that i can test on real hardware easier, load up the loader-rom, select a file from the ftp server, load that into memory, when the loaded rom exits you get back into the virtual layer
+
+- save does not seem to work on target hardware, i should add a logs tab in setting, ndsfetch could push the latest logs to the httpserver
+
+- the codebase is getting kind of big for what it does, but im doing lot of it from scratch, maybe porting to c++ could help some

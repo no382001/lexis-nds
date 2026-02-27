@@ -1,0 +1,13 @@
+# BlocksDS Docker workspace for NDS/DSi builds
+#
+# Usage:
+#   docker compose run --rm blocksds bash    # interactive shell
+#   docker compose run --rm blocksds make    # build NDS ROM
+#   docker compose run --rm blocksds make clean
+
+services:
+  blocksds:
+    image: skylyrac/blocksds:slim-latest
+    volumes:
+      - .:/work
+    working_dir: /work
