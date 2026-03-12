@@ -9,7 +9,11 @@ iliad-flatdb:
 iliad:
     docker run --rm -v "$PWD:/work" -w /work skylyrac/blocksds:slim-latest make
 
-iliad-all: iliad-db iliad-flatdb iliad
+iliad-all:
+    just iliad-db
+    just iliad-flatdb
+    just fonts iliad
+    just iliad
 
 anabasis-db:
     python3 scripts/build_db.py --work=anabasis
@@ -20,30 +24,34 @@ anabasis-flatdb:
 anabasis:
     docker run --rm -v "$PWD:/work" -w /work skylyrac/blocksds:slim-latest make
 
-anabasis-all: anabasis-db anabasis-flatdb anabasis
+anabasis-all:
+    just anabasis-db
+    just anabasis-flatdb
+    just fonts anabasis
+    just anabasis
 
 get-fonts:
     python3 scripts/get_fonts.py
 
-fonts: get-fonts
+fonts work="iliad": get-fonts
     @echo "Building Gentium Plus (family 0)..."
-    python3 scripts/build_font.py --size 8  --font data/fonts/GentiumPlus-Regular.ttf --out romfs/font_0_8.bin
-    python3 scripts/build_font.py --size 10 --font data/fonts/GentiumPlus-Regular.ttf --out romfs/font_0_10.bin
-    python3 scripts/build_font.py --size 12 --font data/fonts/GentiumPlus-Regular.ttf --out romfs/font_0_12.bin
-    python3 scripts/build_font.py --size 14 --font data/fonts/GentiumPlus-Regular.ttf --out romfs/font_0_14.bin
-    python3 scripts/build_font.py --size 16 --font data/fonts/GentiumPlus-Regular.ttf --out romfs/font_0_16.bin
+    python3 scripts/build_font.py --size 8  --font data/fonts/GentiumPlus-Regular.ttf --out romfs/font_0_8.bin  --db data/perseus_{{work}}.db
+    python3 scripts/build_font.py --size 10 --font data/fonts/GentiumPlus-Regular.ttf --out romfs/font_0_10.bin --db data/perseus_{{work}}.db
+    python3 scripts/build_font.py --size 12 --font data/fonts/GentiumPlus-Regular.ttf --out romfs/font_0_12.bin --db data/perseus_{{work}}.db
+    python3 scripts/build_font.py --size 14 --font data/fonts/GentiumPlus-Regular.ttf --out romfs/font_0_14.bin --db data/perseus_{{work}}.db
+    python3 scripts/build_font.py --size 16 --font data/fonts/GentiumPlus-Regular.ttf --out romfs/font_0_16.bin --db data/perseus_{{work}}.db
     @echo "Building DejaVu Sans (family 1)..."
-    python3 scripts/build_font.py --size 8  --out romfs/font_1_8.bin
-    python3 scripts/build_font.py --size 10 --out romfs/font_1_10.bin
-    python3 scripts/build_font.py --size 12 --out romfs/font_1_12.bin
-    python3 scripts/build_font.py --size 14 --out romfs/font_1_14.bin
-    python3 scripts/build_font.py --size 16 --out romfs/font_1_16.bin
+    python3 scripts/build_font.py --size 8  --out romfs/font_1_8.bin  --db data/perseus_{{work}}.db
+    python3 scripts/build_font.py --size 10 --out romfs/font_1_10.bin --db data/perseus_{{work}}.db
+    python3 scripts/build_font.py --size 12 --out romfs/font_1_12.bin --db data/perseus_{{work}}.db
+    python3 scripts/build_font.py --size 14 --out romfs/font_1_14.bin --db data/perseus_{{work}}.db
+    python3 scripts/build_font.py --size 16 --out romfs/font_1_16.bin --db data/perseus_{{work}}.db
     @echo "Building Cardo (family 2)..."
-    python3 scripts/build_font.py --size 8  --font data/fonts/Cardo-Regular.ttf --out romfs/font_2_8.bin
-    python3 scripts/build_font.py --size 10 --font data/fonts/Cardo-Regular.ttf --out romfs/font_2_10.bin
-    python3 scripts/build_font.py --size 12 --font data/fonts/Cardo-Regular.ttf --out romfs/font_2_12.bin
-    python3 scripts/build_font.py --size 14 --font data/fonts/Cardo-Regular.ttf --out romfs/font_2_14.bin
-    python3 scripts/build_font.py --size 16 --font data/fonts/Cardo-Regular.ttf --out romfs/font_2_16.bin
+    python3 scripts/build_font.py --size 8  --font data/fonts/Cardo-Regular.ttf --out romfs/font_2_8.bin  --db data/perseus_{{work}}.db
+    python3 scripts/build_font.py --size 10 --font data/fonts/Cardo-Regular.ttf --out romfs/font_2_10.bin --db data/perseus_{{work}}.db
+    python3 scripts/build_font.py --size 12 --font data/fonts/Cardo-Regular.ttf --out romfs/font_2_12.bin --db data/perseus_{{work}}.db
+    python3 scripts/build_font.py --size 14 --font data/fonts/Cardo-Regular.ttf --out romfs/font_2_14.bin --db data/perseus_{{work}}.db
+    python3 scripts/build_font.py --size 16 --font data/fonts/Cardo-Regular.ttf --out romfs/font_2_16.bin --db data/perseus_{{work}}.db
 
 ndsfetch:
     cd ndsfetch && just build

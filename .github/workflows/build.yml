@@ -9,12 +9,10 @@ jobs:
   iliad:
     name: Iliad
     runs-on: ubuntu-latest
-    container: skylyrac/blocksds:slim-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install just
-        run: curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+      - uses: extractions/setup-just@v2
 
       - name: Cache data repos
         uses: actions/cache@v4
@@ -28,15 +26,17 @@ jobs:
         uses: actions/cache@v4
         with:
           path: romfs/font_*.bin
-          key: fonts-${{ hashFiles('scripts/build_font.py', 'scripts/get_fonts.py') }}
+          key: fonts-iliad-${{ hashFiles('scripts/build_font.py', 'scripts/get_fonts.py') }}
 
       - run: pip install -r requirements.txt
 
       - run: just iliad-db
       - run: just iliad-flatdb
       - if: steps.cache-fonts.outputs.cache-hit != 'true'
-        run: just fonts
-      - run: make
+        run: just fonts iliad
+
+      - name: Build ROM
+        run: docker run --rm -v "$PWD:/work" -w /work skylyrac/blocksds:slim-latest make
 
       - uses: actions/upload-artifact@v4
         with:
@@ -46,12 +46,10 @@ jobs:
   anabasis:
     name: Anabasis
     runs-on: ubuntu-latest
-    container: skylyrac/blocksds:slim-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install just
-        run: curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+      - uses: extractions/setup-just@v2
 
       - name: Cache data repos
         uses: actions/cache@v4
@@ -65,15 +63,17 @@ jobs:
         uses: actions/cache@v4
         with:
           path: romfs/font_*.bin
-          key: fonts-${{ hashFiles('scripts/build_font.py', 'scripts/get_fonts.py') }}
+          key: fonts-anabasis-${{ hashFiles('scripts/build_font.py', 'scripts/get_fonts.py') }}
 
       - run: pip install -r requirements.txt
 
       - run: just anabasis-db
       - run: just anabasis-flatdb
       - if: steps.cache-fonts.outputs.cache-hit != 'true'
-        run: just fonts
-      - run: make
+        run: just fonts anabasis
+
+      - name: Build ROM
+        run: docker run --rm -v "$PWD:/work" -w /work skylyrac/blocksds:slim-latest make
 
       - uses: actions/upload-artifact@v4
         with:
