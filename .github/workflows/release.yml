@@ -1,0 +1,106 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag (e.g. v1.0.0)"
+        required: true
+
+jobs:
+  iliad:
+    name: Iliad
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: extractions/setup-just@v2
+
+      - name: Cache data repos
+        uses: actions/cache@v4
+        with:
+          path: data/
+          key: data-iliad-${{ hashFiles('corpora.yml') }}
+          restore-keys: data-iliad-
+
+      - name: Cache fonts
+        id: cache-fonts
+        uses: actions/cache@v4
+        with:
+          path: romfs/font_*.bin
+          key: fonts-iliad-${{ hashFiles('scripts/build_font.py', 'scripts/get_fonts.py') }}
+
+      - run: pip install -r requirements.txt
+
+      - run: just iliad-db
+      - run: just iliad-flatdb
+      - if: steps.cache-fonts.outputs.cache-hit != 'true'
+        run: just fonts iliad
+
+      - name: Build ROM
+        run: docker run --rm -v "$PWD:/work" -w /work skylyrac/blocksds:slim-latest make
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lexis-iliad
+          path: lexis-iliad.nds
+
+  anabasis:
+    name: Anabasis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: extractions/setup-just@v2
+
+      - name: Cache data repos
+        uses: actions/cache@v4
+        with:
+          path: data/
+          key: data-anabasis-${{ hashFiles('corpora.yml') }}
+          restore-keys: data-anabasis-
+
+      - name: Cache fonts
+        id: cache-fonts
+        uses: actions/cache@v4
+        with:
+          path: romfs/font_*.bin
+          key: fonts-anabasis-${{ hashFiles('scripts/build_font.py', 'scripts/get_fonts.py') }}
+
+      - run: pip install -r requirements.txt
+
+      - run: just anabasis-db
+      - run: just anabasis-flatdb
+      - if: steps.cache-fonts.outputs.cache-hit != 'true'
+        run: just fonts anabasis
+
+      - name: Build ROM
+        run: docker run --rm -v "$PWD:/work" -w /work skylyrac/blocksds:slim-latest make
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lexis-anabasis
+          path: lexis-anabasis.nds
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs: [iliad, anabasis]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: lexis-iliad
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: lexis-anabasis
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: ${{ inputs.tag }}
+          files: |
+            lexis-iliad.nds
+            lexis-anabasis.nds
