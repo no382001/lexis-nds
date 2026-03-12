@@ -103,7 +103,7 @@ def main():
         default="/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         help="TTF font path",
     )
-    parser.add_argument("--db", default="data/perseus.db", help="Perseus DB")
+    parser.add_argument("--db", default="data/perseus_iliad.db", help="Perseus DB")
     parser.add_argument("--out", default=None, help="Output path (default: nds/data/font_{size}.bin)")
     args = parser.parse_args()
 
