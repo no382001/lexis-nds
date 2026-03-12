@@ -1,0 +1,77 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  iliad:
+    name: Iliad
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: extractions/setup-just@v2
+
+      - name: Cache data repos
+        uses: actions/cache@v4
+        with:
+          path: data/
+          key: data-iliad-${{ hashFiles('corpora.yml') }}
+          restore-keys: data-iliad-
+
+      - name: Cache fonts
+        id: cache-fonts
+        uses: actions/cache@v4
+        with:
+          path: romfs/font_*.bin
+          key: fonts-${{ hashFiles('scripts/build_font.py', 'scripts/get_fonts.py') }}
+
+      - run: pip install pyyaml freetype-py
+
+      - run: just iliad-db
+      - run: just iliad-flatdb
+      - if: steps.cache-fonts.outputs.cache-hit != 'true'
+        run: just fonts
+      - run: just iliad
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lexis-iliad
+          path: lexis-iliad.nds
+
+  anabasis:
+    name: Anabasis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: extractions/setup-just@v2
+
+      - name: Cache data repos
+        uses: actions/cache@v4
+        with:
+          path: data/
+          key: data-anabasis-${{ hashFiles('corpora.yml') }}
+          restore-keys: data-anabasis-
+
+      - name: Cache fonts
+        id: cache-fonts
+        uses: actions/cache@v4
+        with:
+          path: romfs/font_*.bin
+          key: fonts-${{ hashFiles('scripts/build_font.py', 'scripts/get_fonts.py') }}
+
+      - run: pip install pyyaml freetype-py
+
+      - run: just anabasis-db
+      - run: just anabasis-flatdb
+      - if: steps.cache-fonts.outputs.cache-hit != 'true'
+        run: just fonts
+      - run: just anabasis
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lexis-anabasis
+          path: lexis-anabasis.nds

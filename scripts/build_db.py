@@ -9,9 +9,10 @@ import unicodedata
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import yaml
+
 ROOT    = Path(__file__).resolve().parent.parent
 DATA    = ROOT / "data"
-DB_PATH = DATA / "perseus.db"
 
 TEI     = "{http://www.tei-c.org/ns/1.0}"
 
@@ -119,6 +120,8 @@ def beta_to_unicode(beta):
 REPOS = {
     "texts":    "https://github.com/PerseusDL/canonical-greekLit.git",
     "treebank": "https://github.com/PerseusDL/treebank_data.git",
+    "gorman":   "https://github.com/perseids-publications/gorman-trees.git",
+    "vgorman":  "https://github.com/vgorman1/Greek-Dependency-Trees.git",
     "shortdefs": "https://github.com/helmadik/shortdefs.git",
     "LSJLogeion": "https://github.com/helmadik/LSJLogeion.git",
 }
@@ -196,34 +199,59 @@ def get_text(elem):
     """all text content from an element tree, concatenated."""
     return "".join(elem.itertext()).strip()
 
-def find_iliad_xml():
-    """locate the Iliad TEI XML in canonical-greekLit."""
-    texts = DATA / "texts"
 
-    for candidate in [
-        "data/tlg0012/tlg001/tlg0012.tlg001.perseus-grc2.xml",
-        "data/tlg0012/tlg001/tlg0012.tlg001.perseus-grc1.xml",
-    ]:
-        p = texts / candidate
+def find_text_xml(author, work):
+    """locate TEI XML for the given TLG author/work IDs."""
+    texts = DATA / "texts"
+    for suffix in ["2", "1", ""]:
+        p = texts / f"data/{author}/{work}/{author}.{work}.perseus-grc{suffix}.xml"
         if p.exists():
             return p
-    
-    # fallback: search
-    for f in sorted(texts.rglob("tlg0012.tlg001.*grc*.xml")):
+    for f in sorted(texts.rglob(f"{author}.{work}.*grc*.xml")):
         return f
     return None
 
-def import_iliad(conn):
-    """parse Iliad TEI XML -> texts table."""
-    print("\n  Importing Iliad text...")
+def find_treebank_files(author, work, repo="treebank", pattern=None):
+    """locate treebank XML files for the given TLG author/work IDs.
 
-    xml_path = find_iliad_xml()
-    if not xml_path:
-        print("    ERROR: Iliad XML not found!")
-        return 0
+    repo:    key in REPOS / subdirectory under data/ to search.
+    pattern: optional filename glob substring for repos without TLG IDs in names.
 
+    Three strategies tried in order:
+    1. explicit pattern match (when corpora.yml supplies one)
+    2. filename match: TLG IDs in filename (Perseus treebank_data style)
+    3. document_id scan: peek at first sentence in each file (Gorman perseids style)
+    """
+    tb = DATA / repo
+
+    if pattern:
+        pat = pattern.lower()
+        return [f for f in sorted(tb.rglob("*.xml")) if pat in f.name.lower()]
+
+    by_name = [f for f in sorted(tb.rglob("*.xml"))
+               if author in f.name and work in f.name]
+    if by_name:
+        return by_name
+
+    # scan document_id in first sentence of each file
+    matches = []
+    for path in sorted(tb.rglob("*.xml")):
+        try:
+            for _, elem in ET.iterparse(str(path), events=("start",)):
+                local = elem.tag.split("}")[-1] if "}" in elem.tag else elem.tag
+                if local == "sentence":
+                    doc_id = elem.get("document_id", "")
+                    if author in doc_id and work in doc_id:
+                        matches.append(path)
+                    break
+        except ET.ParseError:
+            pass
+    return sorted(matches)
+
+
+def import_verse(conn, work_name, xml_path):
+    """parse verse TEI XML (book + <l> lines) -> texts table."""
     print(f"    Source: {xml_path.name}")
-
     tree = ET.parse(str(xml_path))
     root = tree.getroot()
 
@@ -231,38 +259,30 @@ def import_iliad(conn):
     count = 0
     last_book = 0
 
-    # walk the tree looking for book-level divs
     for div in root.iter():
         if tag_local(div) != "div":
             continue
-
         subtype = (div.get("subtype") or div.get("type") or "").lower()
-        if subtype not in ("book",):
+        if subtype != "book":
             continue
-
-        book_str = div.get("n", "")
         try:
-            book_num = int(book_str)
+            book_num = int(div.get("n", ""))
         except ValueError:
             continue
 
-        # collect all <l> (verse line) elements within this book
         for elem in div.iter():
             if tag_local(elem) != "l":
                 continue
-            line_str = elem.get("n", "")
             try:
-                line_num = int(line_str)
+                line_num = int(elem.get("n", ""))
             except ValueError:
                 continue
-
             text = get_text(elem)
             if not text:
                 continue
-
             cur.execute(
                 "INSERT INTO texts (work, book, line, greek) VALUES (?,?,?,?)",
-                ("iliad", book_num, line_num, text),
+                (work_name, book_num, line_num, text),
             )
             count += 1
             last_book = max(last_book, book_num)
@@ -271,40 +291,88 @@ def import_iliad(conn):
     print(f"    {count} lines across {last_book} books")
     return count
 
-def find_treebank_files():
-    """locate Iliad treebank XML files."""
-    tb = DATA / "treebank"
-    files = []
+def import_prose(conn, work_name, xml_path):
+    """parse prose TEI XML (book/chapter/section divs) -> texts table.
 
-    # tlg0012.tlg001 = Homer, Iliad
-    for f in sorted(tb.rglob("*.xml")):
-        if "tlg0012" in f.name and "tlg001" in f.name:
-            files.append(f)
+    Line numbers encode chapter.section as chapter*1000 + section,
+    so Xen.An.1.2.5 -> book=1, line=2005.
+    """
+    print(f"    Source: {xml_path.name}")
+    tree = ET.parse(str(xml_path))
+    root = tree.getroot()
 
-    if not files:
-        # broader search: any .tb.xml
-        for f in sorted(tb.rglob("*.tb.xml")):
-            # check inside for Homer references
-            files.append(f)
+    cur = conn.cursor()
+    count = 0
+    last_book = 0
 
-    return files
+    for book_div in root.iter():
+        if tag_local(book_div) != "div":
+            continue
+        if (book_div.get("subtype") or book_div.get("type") or "").lower() != "book":
+            continue
+        try:
+            book_num = int(book_div.get("n", ""))
+        except ValueError:
+            continue
 
-def import_morphology(conn):
+        for ch_div in book_div:
+            if tag_local(ch_div) != "div":
+                continue
+            if (ch_div.get("subtype") or ch_div.get("type") or "").lower() != "chapter":
+                continue
+            try:
+                ch_num = int(ch_div.get("n", ""))
+            except ValueError:
+                continue
+
+            for sec_div in ch_div:
+                if tag_local(sec_div) != "div":
+                    continue
+                if (sec_div.get("subtype") or sec_div.get("type") or "").lower() != "section":
+                    continue
+                try:
+                    sec_num = int(sec_div.get("n", ""))
+                except ValueError:
+                    continue
+                text = get_text(sec_div)
+                if not text:
+                    continue
+                cur.execute(
+                    "INSERT INTO texts (work, book, line, greek) VALUES (?,?,?,?)",
+                    (work_name, book_num, ch_num * 1000 + sec_num, text),
+                )
+                count += 1
+                last_book = max(last_book, book_num)
+
+    conn.commit()
+    print(f"    {count} sections across {last_book} books")
+    return count
+
+def import_texts(conn, work_name, structure, xml_path):
+    importers = {
+        "verse": import_verse,
+        "prose": import_prose,
+    }
+    if structure not in importers:
+        raise ValueError(f"Unknown structure '{structure}' — expected: {', '.join(importers)}")
+    return importers[structure](conn, work_name, xml_path)
+
+
+def import_morphology(conn, treebank_files):
     """parse treebank XML → morphology table (form, lemma, postag)."""
     print("\n  Importing morphology...")
 
-    files = find_treebank_files()
-    if not files:
-        print("    WARNING: No treebank files found for the Iliad")
+    if not treebank_files:
+        print("    WARNING: No treebank files found")
         return 0
 
-    print(f"    Found {len(files)} treebank file(s)")
+    print(f"    Found {len(treebank_files)} treebank file(s)")
 
     cur = conn.cursor()
     seen = set()
     count = 0
 
-    for fpath in files:
+    for fpath in treebank_files:
         try:
             tree = ET.parse(str(fpath))
         except ET.ParseError as e:
@@ -430,41 +498,67 @@ def import_lexicon(conn):
     print(f"    {count} lexicon entries (merged)")
     return count
 
+
 def main():
     skip = "--skip-download" in sys.argv
 
+    work = "iliad"
+    for arg in sys.argv[1:]:
+        if arg.startswith("--work="):
+            work = arg.split("=", 1)[1]
+
+    corpora = yaml.safe_load((ROOT / "corpora.yml").read_text())
+
+    if work not in corpora:
+        print(f"Unknown work '{work}'. Choices: {', '.join(corpora)}")
+        sys.exit(1)
+
+    cfg      = corpora[work]
+    label    = cfg["label"]
+    db_path  = ROOT / cfg["db"]
+    struct   = cfg["structure"]
+    tb_cfg   = cfg["treebank"]
+    tx_auth  = cfg["text"]["author"]
+    tx_work  = cfg["text"]["work"]
+
     print("=" * 50)
-    print("  Perseus Database Builder")
+    print(f"  Perseus Database Builder — {label}")
     print("=" * 50)
     print()
 
     download_repos(skip=skip)
 
-    if DB_PATH.exists():
-        DB_PATH.unlink()
+    if db_path.exists():
+        db_path.unlink()
     DATA.mkdir(exist_ok=True)
 
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(db_path))
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=OFF")
 
     create_schema(conn)
 
-    texts  = import_iliad(conn)
-    morphs = import_morphology(conn)
+    print(f"\n  Importing {label} text...")
+    xml_path = find_text_xml(tx_auth, tx_work)
+    if not xml_path:
+        print(f"    ERROR: XML not found for {tx_auth}/{tx_work}")
+        sys.exit(1)
+    texts = import_texts(conn, work, struct, xml_path)
+
+    treebank_files = find_treebank_files(
+        tb_cfg["author"], tb_cfg["work"],
+        tb_cfg.get("repo", "treebank"),
+        tb_cfg.get("pattern"),
+    )
+    morphs = import_morphology(conn, treebank_files)
     lexent = import_lexicon(conn)
 
-    # prune lexicon to only entries referenced by the morphology data.
-    # this keeps the DB lean
     print("\n  Pruning lexicon to MVP vocabulary...")
     cur = conn.cursor()
-
-    # build set of normalized lemma forms we need
     needed_norm = set()
     for (lemma,) in cur.execute("SELECT DISTINCT lemma FROM morphology"):
         needed_norm.add(normalize_lemma(lemma))
 
-    # delete lexicon entries whose normalized lemma isn't needed
     before = cur.execute("SELECT COUNT(*) FROM lexicon").fetchone()[0]
     cur.execute("SELECT rowid, lemma FROM lexicon")
     to_delete = [rowid for rowid, lemma in cur.fetchall()
@@ -483,16 +577,32 @@ def main():
     conn.execute("VACUUM")
     conn.close()
 
-    size_mb = DB_PATH.stat().st_size / (1024 * 1024)
+    size_mb = db_path.stat().st_size / (1024 * 1024)
 
     print()
     print("=" * 50)
-    print(f"  Database: {DB_PATH}")
+    print(f"  Database: {db_path}")
     print(f"  Size:     {size_mb:.1f} MB")
     print(f"  Texts:    {texts} lines")
     print(f"  Morph:    {morphs} analyses")
     print(f"  Lexicon:  {lexent} entries")
     print("=" * 50)
+
+    # corpus.mk — Makefile picks up NAME and GAME_SUBTITLE
+    mk_path = ROOT / "corpus.mk"
+    with open(mk_path, "w") as f:
+        f.write(f"CORPUS_WORK  := {work}\n")
+        f.write(f"CORPUS_LABEL := {label}\n")
+
+    # corpus_auto.h — C code includes this; avoids shell quoting issues with
+    # spaces/commas when the label is passed as a compiler -D flag
+    h_path = ROOT / "source" / "corpus_auto.h"
+    with open(h_path, "w") as f:
+        f.write("/* auto-generated by build_db.py — do not edit */\n")
+        f.write(f'#define CORPUS_WORK  "{work}"\n')
+        f.write(f'#define CORPUS_LABEL "{label}"\n')
+
+    print(f"\n  Generated: {mk_path.name}, {h_path.name}")
     print("  Done!")
     print()
 

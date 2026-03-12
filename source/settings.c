@@ -30,7 +30,7 @@ void draw_bar(void) {
 
   int y = bar_y + 3;
 
-  int maxl = reader_max_line(g_ctx, "iliad", g_book);
+  int maxl = reader_max_line(g_ctx, CORPUS_WORK, g_book);
   char line1[80];
   snprintf(line1, sizeof(line1),
            "Book %d/%d  [%d/%d]  %dpx  [L\xe2\x88\x92/R+]", g_book, g_num_books,
@@ -132,7 +132,7 @@ static void draw_tab_info(const tr_font *sf, int content_y) {
 
   tr_draw_text(sf, 8, y, "Reader v0.1", p->hl);
   y += lh;
-  snprintf(line, sizeof(line), "Corpus: Homer, Iliad  (%d books)", g_num_books);
+  snprintf(line, sizeof(line), "Corpus: " CORPUS_LABEL "  (%d books)", g_num_books);
   tr_draw_text(sf, 8, y, line, p->text);
   y += lh;
   snprintf(line, sizeof(line), "Book %d  line %d  zoom %dpx", g_book,
@@ -293,11 +293,11 @@ void preview_top(void) {
 
   static reader_line pv[MAX_PAGE_LINES];
   int pn =
-      reader_get_lines(g_ctx, "iliad", g_book, g_line_num, g_page_lines, pv);
+      reader_get_lines(g_ctx, CORPUS_WORK, g_book, g_line_num, g_page_lines, pv);
   if (pn > MAX_PAGE_LINES)
     pn = MAX_PAGE_LINES;
 
-  int maxl = reader_max_line(g_ctx, "iliad", g_book);
+  int maxl = reader_max_line(g_ctx, CORPUS_WORK, g_book);
   char hdr[80];
   snprintf(hdr, sizeof(hdr), "Book %d/%d  [%d / %d]  %dpx", g_book, g_num_books,
            g_line_num, maxl, g_zoom_sizes[g_zoom_level]);
@@ -370,7 +370,7 @@ void settings_clamp(void) {
     g_set_book = 1;
   if (g_set_book > g_num_books)
     g_set_book = g_num_books;
-  int maxl = reader_max_line(g_ctx, "iliad", g_set_book);
+  int maxl = reader_max_line(g_ctx, CORPUS_WORK, g_set_book);
   if (g_set_line < 1)
     g_set_line = 1;
   if (g_set_line > maxl)

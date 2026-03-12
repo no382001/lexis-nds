@@ -1,18 +1,31 @@
-default: lexis-nds
+default: iliad
 
-setup:
-    python3 scripts/build_db.py
+iliad-db:
+    python3 scripts/build_db.py --work=iliad
 
-db:
-    python3 scripts/build_db.py --skip-download
+iliad-flatdb:
+    python3 scripts/build_flatdb.py data/perseus_iliad.db romfs/lexis.dat --skip-defs
 
-flatdb: db
-    python3 scripts/build_flatdb.py data/perseus.db romfs/lexis.dat --skip-defs
+iliad:
+    docker compose run --rm blocksds make
+
+iliad-all: iliad-db iliad-flatdb iliad
+
+anabasis-db:
+    python3 scripts/build_db.py --work=anabasis
+
+anabasis-flatdb:
+    python3 scripts/build_flatdb.py data/perseus_anabasis.db romfs/lexis.dat --skip-defs
+
+anabasis:
+    docker compose run --rm blocksds make
+
+anabasis-all: anabasis-db anabasis-flatdb anabasis
 
 get-fonts:
     python3 scripts/get_fonts.py
 
-fonts: db get-fonts
+fonts: get-fonts
     @echo "Building Gentium Plus (family 0)..."
     python3 scripts/build_font.py --size 8  --font data/fonts/GentiumPlus-Regular.ttf --out romfs/font_0_8.bin
     python3 scripts/build_font.py --size 10 --font data/fonts/GentiumPlus-Regular.ttf --out romfs/font_0_10.bin
@@ -32,17 +45,12 @@ fonts: db get-fonts
     python3 scripts/build_font.py --size 14 --font data/fonts/Cardo-Regular.ttf --out romfs/font_2_14.bin
     python3 scripts/build_font.py --size 16 --font data/fonts/Cardo-Regular.ttf --out romfs/font_2_16.bin
 
-data: setup flatdb fonts
-
-lexis-nds:
-    docker compose run --rm blocksds make
-
 ndsfetch:
     cd ndsfetch && just build
 
-upload: lexis-nds
-    curl -X DELETE http://192.168.0.11:3923/nds/lexis-nds.nds 2>/dev/null || true
-    curl -T lexis-nds.nds http://192.168.0.11:3923/nds/lexis-nds.nds
+upload work="iliad":
+    curl -X DELETE http://192.168.0.11:3923/nds/lexis-{{work}}.nds 2>/dev/null || true
+    curl -T lexis-{{work}}.nds http://192.168.0.11:3923/nds/lexis-{{work}}.nds
 
 upload-ndsfetch: ndsfetch
     curl -X DELETE http://192.168.0.11:3923/nds/ndsfetch.nds 2>/dev/null || true
@@ -54,8 +62,8 @@ serve port="8880":
 fmt:
     clang-format -i source/*.c source/*.h ndsfetch/source/*.c
 
-run: lexis-nds
-    data/melonDS-x86_64.AppImage lexis-nds.nds &
+run work="iliad":
+    data/melonDS-x86_64.AppImage lexis-{{work}}.nds &
 
 get-emulator:
     mkdir -p data
@@ -65,7 +73,7 @@ get-emulator:
     rm data/melonDS-appimage.zip
 
 clean:
-    rm -rf build/ lexis-nds.nds ndsfetch/build/ scripts/__pycache__/
+    rm -rf build/ lexis-iliad.nds lexis-anabasis.nds ndsfetch/build/ scripts/__pycache__/
 
 distclean: clean
     rm -rf data/ romfs/

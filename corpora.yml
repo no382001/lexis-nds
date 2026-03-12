@@ -1,0 +1,23 @@
+iliad:
+  label: "Homer, Iliad"
+  db: "data/perseus_iliad.db"
+  structure: "verse"
+  text:
+    author: "tlg0012"
+    work: "tlg001"
+  treebank:
+    author: "tlg0012"
+    work: "tlg001"
+
+anabasis:
+  label: "Xenophon, Anabasis"
+  db: "data/perseus_anabasis.db"
+  structure: "prose"
+  text:
+    author: "tlg0032"
+    work: "tlg006"
+  treebank:
+    author: "tlg0032"
+    work: "tlg006"
+    repo: "vgorman"
+    pattern: "xen"

@@ -1,29 +1,16 @@
-# lexis-nds — NDS/DSi Greek text reader (BlocksDS)
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#
-# Build inside the BlocksDS Docker container:
-#   docker compose run --rm blocksds make
-#
-# Or interactively:
-#   docker compose run --rm blocksds
-#   make
-
-# ── BlocksDS paths (pre-set in Docker container) ────────────
-
 BLOCKSDS            ?= /opt/blocksds/core
 BLOCKSDSEXT         ?= /opt/blocksds/external
 WONDERFUL_TOOLCHAIN ?= /opt/wonderful
 
-# ── Project ─────────────────────────────────────────────────
+-include corpus.mk
+CORPUS_WORK  ?= iliad
+CORPUS_LABEL ?= Homer, Iliad
 
-NAME            := lexis-nds
+NAME            := lexis-$(CORPUS_WORK)
 
 GAME_TITLE      := lexis-nds
-GAME_SUBTITLE   := Greek Text Reader
+GAME_SUBTITLE   := Greek Text Reader - $(CORPUS_LABEL)
 GAME_AUTHOR     := lexis-nds
-
-# ── Sources ─────────────────────────────────────────────────
-# Explicit file list so we don't pick up the desktop main.c
 
 SOURCES_C       := source/main.c \
                    source/palette.c \
@@ -38,36 +25,22 @@ SOURCES_C       := source/main.c \
 
 INCLUDEDIRS     := source
 
-# ── Defines ─────────────────────────────────────────────────
-# SQLite: minimal footprint for NDS (no threads, no extensions)
-# picolibc: integer-only printf (saves ~4KB, no floats needed)
-
-# NDS build flag + picolibc integer-only printf
-
-DEFINES         :=
-
-# ── Libraries ───────────────────────────────────────────────
+DEFINES         := -include source/corpus_auto.h
 
 ARM7ELF         := $(BLOCKSDS)/sys/arm7/main_core/arm7_minimal.elf
 LIBS            := -lnds9 -lc
 LIBDIRS         := $(BLOCKSDS)/libs/libnds
-
-# ── Build paths ─────────────────────────────────────────────
 
 BUILDDIR        := build
 ELF             := $(BUILDDIR)/$(NAME).elf
 MAP             := $(BUILDDIR)/$(NAME).map
 ROM             := $(NAME).nds
 
-# ── Toolchain ───────────────────────────────────────────────
-
 PREFIX          := $(WONDERFUL_TOOLCHAIN)/toolchain/gcc-arm-none-eabi/bin/arm-none-eabi-
 CC              := $(PREFIX)gcc
 LD              := $(PREFIX)gcc
 OBJCOPY         := $(PREFIX)objcopy
 NDSTOOL         := $(BLOCKSDS)/tools/ndstool/ndstool
-
-# ── Compiler flags ──────────────────────────────────────────
 
 ARCH            := -mthumb -mcpu=arm946e-s+nofp
 SPECS           := $(BLOCKSDS)/sys/crts/dsi_arm9.specs
@@ -93,12 +66,8 @@ LDFLAGS         := $(ARCH) $(LIBDIRSFLAGS) \
                    -Wl,--start-group $(LIBS) -Wl,--end-group \
                    -specs=$(SPECS)
 
-# ── Object files ────────────────────────────────────────────
-
 OBJS            := $(addprefix $(BUILDDIR)/,$(notdir $(SOURCES_C:.c=.o)))
 VPATH           := source
-
-# ── Targets ─────────────────────────────────────────────────
 
 .PHONY: all clean
 

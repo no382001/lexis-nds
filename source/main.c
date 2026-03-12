@@ -9,6 +9,13 @@
 
 #include "ui.h"
 
+#ifndef CORPUS_WORK
+#define CORPUS_WORK "iliad"
+#endif
+#ifndef CORPUS_LABEL
+#define CORPUS_LABEL "Homer, Iliad"
+#endif
+
 static void vblank_handler(void) {}
 
 const int g_zoom_sizes[NUM_ZOOM_LEVELS] = {8, 10, 12, 14, 16};
@@ -130,7 +137,7 @@ static void show_bottom_info(void) {
 
   tr_draw_text(big, 4, y, "Reader v0.1", p->hl);
   y += line_h;
-  tr_draw_text(big, 4, y, "Homer, Iliad", p->num);
+  tr_draw_text(big, 4, y, CORPUS_LABEL, p->num);
   y += line_h * 2;
 
   tr_draw_hline(0, y - 2, TR_SCREEN_W, p->num);
@@ -170,13 +177,13 @@ static void show_bottom_info(void) {
 }
 
 void show_text(void) {
-  int maxl = reader_max_line(g_ctx, "iliad", g_book);
+  int maxl = reader_max_line(g_ctx, CORPUS_WORK, g_book);
 
   static reader_line lines[MAX_PAGE_LINES];
   int fetch = g_page_lines + LINE_FETCH_EXTRA;
   if (fetch > MAX_PAGE_LINES)
     fetch = MAX_PAGE_LINES;
-  int n = reader_get_lines(g_ctx, "iliad", g_book, g_line_num, fetch, lines);
+  int n = reader_get_lines(g_ctx, CORPUS_WORK, g_book, g_line_num, fetch, lines);
   if (n > MAX_PAGE_LINES)
     n = MAX_PAGE_LINES;
 
@@ -233,7 +240,7 @@ void show_text(void) {
       int ctx_count = g_line_num - ctx_start;
 
       static reader_line ctx_lines[MAX_PAGE_LINES];
-      int cn = reader_get_lines(g_ctx, "iliad", g_book, ctx_start, ctx_count,
+      int cn = reader_get_lines(g_ctx, CORPUS_WORK, g_book, ctx_start, ctx_count,
                                 ctx_lines);
 
       int ctx_line_h = g_font->glyph_h + 1;
@@ -347,7 +354,7 @@ static app_state_t on_read_SELECT(app_state_t s) {
 }
 
 static app_state_t on_read_DOWN(app_state_t s) {
-  int maxl = reader_max_line(g_ctx, "iliad", g_book);
+  int maxl = reader_max_line(g_ctx, CORPUS_WORK, g_book);
   if (g_line_num < maxl) {
     g_line_num++;
     show_text();
@@ -543,8 +550,8 @@ int main(void) {
       swiWaitForVBlank();
   }
 
-  g_num_books = reader_book_count(g_ctx, "iliad");
-  printf("[4] Iliad: %d books\n", g_num_books);
+  g_num_books = reader_book_count(g_ctx, CORPUS_WORK);
+  printf("[4] %s: %d books\n", CORPUS_LABEL, g_num_books);
 
   if (g_fat_ok)
     notes_load();

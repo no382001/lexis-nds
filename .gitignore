@@ -63,3 +63,5 @@ romfs/
 scripts/__pycache__/
 sdcard.img
 sdcard.img.idx
+corpus.mk
+source/corpus_auto.h

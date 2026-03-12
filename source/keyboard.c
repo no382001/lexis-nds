@@ -368,7 +368,7 @@ static app_state_t kb_confirm_and_return(void) {
       g_book = new_book;
     }
     if (new_line >= 1) {
-      int maxl = reader_max_line(g_ctx, "iliad", g_book);
+      int maxl = reader_max_line(g_ctx, CORPUS_WORK, g_book);
       if (new_line > maxl) {
         snprintf(g_kb.error, sizeof(g_kb.error), "Book %d: lines 1-%d", g_book,
                  maxl);
