@@ -30,8 +30,8 @@ like:
 
 - experiment with non-snap scrolling, add a way to scroll much faster, maybe remap the bumpers for this
 
-- a virtual layer that i can test on real hardware easier, load up the loader-rom, select a file from the ftp server, load that into memory, when the loaded rom exits you get back into the virtual layer
+[x] a virtual layer that i can test on real hardware easier, load up the loader-rom, select a file from the ftp server, load that into memory, when the loaded rom exits you get back into the virtual layer
 
-- save does not seem to work on target hardware, i should add a logs tab in setting, ndsfetch could push the latest logs to the httpserver
+[x] save does not seem to work on target hardware, i should add a logs tab in setting, ndsfetch could push the latest logs to the httpserver
 
-- start should not reboot
+[x] start should not reboot

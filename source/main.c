@@ -3,11 +3,29 @@
 #include <nds.h>
 
 #include <errno.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "ui.h"
+
+char g_log_lines[LOG_MAX_LINES][LOG_LINE_LEN];
+int  g_log_count;
+
+void log_msg(const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  char buf[LOG_LINE_LEN];
+  vsnprintf(buf, sizeof(buf), fmt, ap);
+  va_end(ap);
+  printf("%s\n", buf);
+  if (g_log_count < LOG_MAX_LINES) {
+    memcpy(g_log_lines[g_log_count], buf, LOG_LINE_LEN - 1);
+    g_log_lines[g_log_count][LOG_LINE_LEN - 1] = '\0';
+    g_log_count++;
+  }
+}
 
 #ifndef CORPUS_WORK
 #define CORPUS_WORK "iliad"
@@ -170,8 +188,6 @@ static void show_bottom_info(void) {
   tr_draw_text(big, 4, y, "X         Draw mode", p->text);
   y += line_h;
   tr_draw_text(big, 4, y, "SELECT    Settings", p->text);
-  y += line_h;
-  tr_draw_text(big, 4, y, "START     Quit", p->text);
 
   tr_select(TR_SCREEN_TOP);
 }
@@ -525,33 +541,32 @@ int main(void) {
   consoleInit(&bootConsole, 3, BgType_Text4bpp, BgSize_T_256x256, 31, 0, false,
               true);
 
-  printf("Reader v0.1\n");
-  printf("Booting...\n\n");
+  log_msg("Reader v0.1  " CORPUS_LABEL);
 
-  printf("[1] NitroFS init...\n");
+  log_msg("[1] NitroFS init...");
   if (!nitroFSInit(nil)) {
     printf("\x1b[31mNitroFS init failed!\x1b[0m\n");
-    printf("errno=%d\n", errno);
+    log_msg("[1] NitroFS FAILED errno=%d", errno);
     while (1)
       swiWaitForVBlank();
   }
-  printf("[1] NitroFS OK\n");
+  log_msg("[1] NitroFS OK");
 
   g_fat_ok = fatInitDefault();
-  printf("[2] FAT %s\n", g_fat_ok ? "OK" : "unavailable (no save)");
+  log_msg("[2] FAT %s", g_fat_ok ? "OK" : "unavailable (no save)");
 
-  printf("[3] Opening DB...\n");
+  log_msg("[3] Opening DB...");
   g_ctx = reader_open("nitro:/lexis.dat");
 
   if (!g_ctx) {
     printf("\x1b[31mCannot open DB!\x1b[0m\n");
-    printf("nitro:/lexis.dat not found.\n");
+    log_msg("[3] DB FAILED");
     while (1)
       swiWaitForVBlank();
   }
 
   g_num_books = reader_book_count(g_ctx, CORPUS_WORK);
-  printf("[4] %s: %d books\n", CORPUS_LABEL, g_num_books);
+  log_msg("[3] DB OK  %d books", g_num_books);
 
   if (g_fat_ok)
     notes_load();
@@ -560,9 +575,9 @@ int main(void) {
     draw_load();
 
   if (load_state())
-    printf("    Save loaded (g_book %d, line %d)\n", g_book, g_line_num);
+    log_msg("[4] Save loaded: book %d line %d", g_book, g_line_num);
   else
-    printf("    No save file\n");
+    log_msg("[4] No save file");
 
   printf("[5] Loading fonts...\n");
   for (int fam = 0; fam < NUM_FONT_FAMILIES; fam++) {
@@ -574,6 +589,7 @@ int main(void) {
       g_all_fonts[fam][i] = tr_load_font(path);
       if (!g_all_fonts[fam][i]) {
         printf("\x1b[31mFailed: %s\x1b[0m\n", path);
+        log_msg("[5] Font FAILED: %s", path);
         while (1)
           swiWaitForVBlank();
       }
@@ -584,7 +600,7 @@ int main(void) {
   memcpy(g_fonts, g_all_fonts[g_font_family], sizeof(g_fonts));
   g_font = g_fonts[g_zoom_level];
   recompute_page_lines();
-  printf("    %d lines/page\n", g_page_lines);
+  log_msg("[5] Fonts OK  %d lines/page", g_page_lines);
 
   printf("[6] Setting up framebuffers...\n");
   swiWaitForVBlank();
@@ -608,9 +624,6 @@ int main(void) {
 
     scanKeys();
     u32 keys = keysDown();
-
-    if (keys & KEY_START)
-      break;
 
     if (g_book >= 1 && g_book <= MAX_BOOKS)
       g_book_lines[g_book - 1] = (int16_t)g_line_num;

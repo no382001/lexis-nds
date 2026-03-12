@@ -26,6 +26,9 @@ enum {
 
   BAR_TIMEOUT_FRAMES = 180, /* ~3 seconds at 60 fps */
   LINE_FETCH_EXTRA = 10,    /* extra lines to fetch beyond page */
+
+  LOG_MAX_LINES = 32,
+  LOG_LINE_LEN  = 64,
 };
 
 typedef struct {
@@ -86,6 +89,10 @@ extern result_line g_result_buf[MAX_RESULT_LINES];
 extern int g_result_count;
 extern int g_result_scroll;
 extern char g_result_title[MAX_WORD_LEN];
+
+extern char g_log_lines[LOG_MAX_LINES][LOG_LINE_LEN];
+extern int  g_log_count;
+void log_msg(const char *fmt, ...);
 
 extern int g_set_book, g_set_line, g_set_cursor, g_set_tab;
 extern int g_pick_custom, g_pick_field, g_pick_slider;

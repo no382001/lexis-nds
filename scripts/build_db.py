@@ -294,8 +294,8 @@ def import_verse(conn, work_name, xml_path):
 def import_prose(conn, work_name, xml_path):
     """parse prose TEI XML (book/chapter/section divs) -> texts table.
 
-    Line numbers encode chapter.section as chapter*1000 + section,
-    so Xen.An.1.2.5 -> book=1, line=2005.
+    Lines are numbered sequentially (1, 2, 3 ...) within each book.
+    The chapter.section reference is prepended to the text as "[ch.sec] ...".
     """
     print(f"    Source: {xml_path.name}")
     tree = ET.parse(str(xml_path))
@@ -315,6 +315,7 @@ def import_prose(conn, work_name, xml_path):
         except ValueError:
             continue
 
+        seq = 0
         for ch_div in book_div:
             if tag_local(ch_div) != "div":
                 continue
@@ -337,9 +338,10 @@ def import_prose(conn, work_name, xml_path):
                 text = get_text(sec_div)
                 if not text:
                     continue
+                seq += 1
                 cur.execute(
                     "INSERT INTO texts (work, book, line, greek) VALUES (?,?,?,?)",
-                    (work_name, book_num, ch_num * 1000 + sec_num, text),
+                    (work_name, book_num, seq, f"[{ch_num}.{sec_num}] {text}"),
                 )
                 count += 1
                 last_book = max(last_book, book_num)

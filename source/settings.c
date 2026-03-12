@@ -113,7 +113,7 @@ app_state_t on_bar_TOUCH(app_state_t s) {
 
 
 enum {
-  NUM_TABS = 3,
+  NUM_TABS = 4,
   SET_ROW_H = 20,
   SET_BTN_W = 24,
   SET_VAL_W = 60,
@@ -123,6 +123,25 @@ enum {
   TAB_H = 16,
   TAB_Y = 2,
 };
+
+static void draw_tab_logs(const tr_font *sf, int content_y) {
+  const palette_t *p = active_palette();
+  int lh = sf->glyph_h + 2;
+  int y = content_y + 2;
+  int max_lines = (TR_SCREEN_H - y - 4) / lh;
+
+  int start = g_log_count - max_lines;
+  if (start < 0)
+    start = 0;
+
+  for (int i = start; i < g_log_count && y + lh <= TR_SCREEN_H; i++) {
+    tr_draw_text(sf, 4, y, g_log_lines[i], p->text);
+    y += lh;
+  }
+
+  if (g_log_count == 0)
+    tr_draw_text(sf, 8, y, "(no log entries)", p->num);
+}
 
 static void draw_tab_info(const tr_font *sf, int content_y) {
   const palette_t *p = active_palette();
@@ -258,7 +277,7 @@ void draw_settings(void) {
 
   const tr_font *sf = g_fonts[1];
 
-  static const char *tab_names[NUM_TABS] = {"Info", "Colors", "Font"};
+  static const char *tab_names[NUM_TABS] = {"Info", "Colors", "Font", "Logs"};
   int tab_w = TR_SCREEN_W / NUM_TABS;
   for (int i = 0; i < NUM_TABS; i++) {
     int tx = i * tab_w;
@@ -276,8 +295,10 @@ void draw_settings(void) {
     draw_tab_info(sf, content_y);
   else if (g_set_tab == 1)
     draw_tab_colors(sf, content_y);
-  else
+  else if (g_set_tab == 2)
     draw_tab_font(sf, content_y);
+  else
+    draw_tab_logs(sf, content_y);
 
   tr_select(TR_SCREEN_TOP);
 }

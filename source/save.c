@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -46,12 +47,16 @@ static void ensure_dir(const char *path) {
 void save_state(void) {
   _Static_assert(sizeof(reader_save_t) <= 128, "save struct size");
 
-  if (!g_fat_ok)
+  if (!g_fat_ok) {
+    log_msg("save: FAT unavailable");
     return;
+  }
   ensure_dir(SAVE_PATH);
   FILE *f = fopen(SAVE_PATH, "wb");
-  if (!f)
+  if (!f) {
+    log_msg("save: fopen failed errno=%d", errno);
     return;
+  }
   reader_save_t sv;
   memset(&sv, 0, sizeof(sv));
   sv.magic = SAVE_MAGIC;
@@ -65,8 +70,12 @@ void save_state(void) {
     g_book_lines[g_book - 1] = (int16_t)g_line_num;
   memcpy(sv.g_book_lines, g_book_lines, sizeof(g_book_lines));
   memcpy(sv.custom, g_custom_palettes, sizeof(g_custom_palettes));
-  fwrite(&sv, sizeof(sv), 1, f);
+  int ok = fwrite(&sv, sizeof(sv), 1, f);
   fclose(f);
+  if (!ok)
+    log_msg("save: fwrite failed errno=%d", errno);
+  else
+    log_msg("save: OK");
 }
 
 int load_state(void) {
