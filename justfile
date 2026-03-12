@@ -7,7 +7,7 @@ iliad-flatdb:
     python3 scripts/build_flatdb.py data/perseus_iliad.db romfs/lexis.dat --skip-defs
 
 iliad:
-    docker compose run --rm blocksds make
+    docker run --rm -v "$PWD:/work" -w /work skylyrac/blocksds:slim-latest make
 
 iliad-all: iliad-db iliad-flatdb iliad
 
@@ -18,7 +18,7 @@ anabasis-flatdb:
     python3 scripts/build_flatdb.py data/perseus_anabasis.db romfs/lexis.dat --skip-defs
 
 anabasis:
-    docker compose run --rm blocksds make
+    docker run --rm -v "$PWD:/work" -w /work skylyrac/blocksds:slim-latest make
 
 anabasis-all: anabasis-db anabasis-flatdb anabasis
 

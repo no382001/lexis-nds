@@ -9,10 +9,12 @@ jobs:
   iliad:
     name: Iliad
     runs-on: ubuntu-latest
+    container: skylyrac/blocksds:slim-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: extractions/setup-just@v2
+      - name: Install just
+        run: curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
 
       - name: Cache data repos
         uses: actions/cache@v4
@@ -34,7 +36,7 @@ jobs:
       - run: just iliad-flatdb
       - if: steps.cache-fonts.outputs.cache-hit != 'true'
         run: just fonts
-      - run: just iliad
+      - run: make
 
       - uses: actions/upload-artifact@v4
         with:
@@ -44,10 +46,12 @@ jobs:
   anabasis:
     name: Anabasis
     runs-on: ubuntu-latest
+    container: skylyrac/blocksds:slim-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: extractions/setup-just@v2
+      - name: Install just
+        run: curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
 
       - name: Cache data repos
         uses: actions/cache@v4
@@ -69,7 +73,7 @@ jobs:
       - run: just anabasis-flatdb
       - if: steps.cache-fonts.outputs.cache-hit != 'true'
         run: just fonts
-      - run: just anabasis
+      - run: make
 
       - uses: actions/upload-artifact@v4
         with:
