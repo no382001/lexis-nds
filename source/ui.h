@@ -94,6 +94,8 @@ extern char g_log_lines[LOG_MAX_LINES][LOG_LINE_LEN];
 extern int  g_log_count;
 void log_msg(const char *fmt, ...);
 
+extern int g_row_offset;
+
 extern int g_set_book, g_set_line, g_set_cursor, g_set_tab;
 extern int g_pick_custom, g_pick_field, g_pick_slider;
 extern int g_bar_timer;

@@ -67,6 +67,8 @@ int g_result_count;
 int g_result_scroll;
 char g_result_title[MAX_WORD_LEN];
 
+int g_row_offset;
+
 int g_set_book, g_set_line;
 int g_set_cursor;
 int g_set_tab;
@@ -103,6 +105,18 @@ void recompute_page_lines(void) {
 }
 
 
+static int count_line_rows(int book, int line) {
+  static reader_line tmp[1];
+  if (reader_get_lines(g_ctx, CORPUS_WORK, book, line, 1, tmp) < 1)
+    return 1;
+  char num[8];
+  snprintf(num, sizeof(num), "%3d ", line);
+  int num_w = tr_text_width(g_font, num);
+  int text_x = 2 + num_w;
+  return tr_count_wrapped_lines(g_font, text_x, text_x, TR_SCREEN_W - 2,
+                                tmp[0].text);
+}
+
 static int render_lines(const reader_line *lines, int count, int first_line,
                         int total_max, int show_header) {
   int line_h = g_font->glyph_h + 1;
@@ -119,6 +133,8 @@ static int render_lines(const reader_line *lines, int count, int first_line,
     tr_draw_hline(0, header_h - 1, TR_SCREEN_W, active_palette()->num);
     y = header_h;
   }
+
+  y -= g_row_offset * line_h;
 
   int rendered = 0;
   for (int i = 0; i < count; i++) {
@@ -183,11 +199,15 @@ static void show_bottom_info(void) {
 
   tr_draw_text(big, 4, y, "Touch     Tap word to look up", p->hl);
   y += line_h;
+  tr_draw_text(big, 4, y, "U/D       Scroll line", p->text);
+  y += line_h;
+  tr_draw_text(big, 4, y, "L/R       Page scroll", p->text);
+  y += line_h;
   tr_draw_text(big, 4, y, "Y         Goto (book.line)", p->text);
   y += line_h;
   tr_draw_text(big, 4, y, "X         Draw mode", p->text);
   y += line_h;
-  tr_draw_text(big, 4, y, "SELECT    Settings", p->text);
+  tr_draw_text(big, 4, y, "SELECT    Settings (zoom via bar)", p->text);
 
   tr_select(TR_SCREEN_TOP);
 }
@@ -208,7 +228,7 @@ void show_text(void) {
     tr_clear(active_palette()->bg);
 
     int line_h = g_font->glyph_h + 1;
-    int y = 0;
+    int y = -(g_row_offset * line_h);
     int bot_rendered = 0;
     bot_header_h = 0;
     for (int i = 0; i < n; i++) {
@@ -248,12 +268,13 @@ void show_text(void) {
     tr_select(TR_SCREEN_TOP);
     tr_clear(active_palette()->bg);
 
-    if (g_line_num > 1) {
+    if (g_line_num > 1 || g_row_offset > 0) {
       int per = lines_per_screen();
       int ctx_start = g_line_num - per * 2;
       if (ctx_start < 1)
         ctx_start = 1;
-      int ctx_count = g_line_num - ctx_start;
+      /* include current line when we're mid-section so top matches bottom */
+      int ctx_count = g_line_num - ctx_start + (g_row_offset > 0 ? 1 : 0);
 
       static reader_line ctx_lines[MAX_PAGE_LINES];
       int cn = reader_get_lines(g_ctx, CORPUS_WORK, g_book, ctx_start, ctx_count,
@@ -270,6 +291,11 @@ void show_text(void) {
             g_font, text_x, text_x, TR_SCREEN_W - 2, ctx_lines[i].text);
         if (row_counts[i] < 1)
           row_counts[i] = 1;
+      }
+      /* clamp current line to only the rows already scrolled past */
+      if (g_row_offset > 0 && cn > 0 &&
+          ctx_lines[cn - 1].line == g_line_num) {
+        row_counts[cn - 1] = g_row_offset;
       }
 
       int first = cn;
@@ -370,19 +396,29 @@ static app_state_t on_read_SELECT(app_state_t s) {
 }
 
 static app_state_t on_read_DOWN(app_state_t s) {
-  int maxl = reader_max_line(g_ctx, CORPUS_WORK, g_book);
-  if (g_line_num < maxl) {
-    g_line_num++;
-    show_text();
+  int total = count_line_rows(g_book, g_line_num);
+  if (g_row_offset + 1 < total) {
+    g_row_offset++;
+  } else {
+    int maxl = reader_max_line(g_ctx, CORPUS_WORK, g_book);
+    if (g_line_num < maxl) {
+      g_line_num++;
+      g_row_offset = 0;
+    }
   }
+  show_text();
   return s;
 }
 
 static app_state_t on_read_UP(app_state_t s) {
-  if (g_line_num > 1) {
+  if (g_row_offset > 0) {
+    g_row_offset--;
+  } else if (g_line_num > 1) {
     g_line_num--;
-    show_text();
+    int total = count_line_rows(g_book, g_line_num);
+    g_row_offset = total - 1;
   }
+  show_text();
   return s;
 }
 
@@ -394,6 +430,7 @@ static app_state_t on_read_RIGHT(app_state_t s) {
     g_line_num = (g_book <= MAX_BOOKS && g_book_lines[g_book - 1] > 0)
                      ? g_book_lines[g_book - 1]
                      : 1;
+    g_row_offset = 0;
     show_text();
   }
   return s;
@@ -407,28 +444,28 @@ static app_state_t on_read_LEFT(app_state_t s) {
     g_line_num = (g_book >= 1 && g_book_lines[g_book - 1] > 0)
                      ? g_book_lines[g_book - 1]
                      : 1;
+    g_row_offset = 0;
     show_text();
   }
   return s;
 }
 
 static app_state_t on_read_R(app_state_t s) {
-  if (g_zoom_level < NUM_ZOOM_LEVELS - 1) {
-    g_zoom_level++;
-    g_font = g_fonts[g_zoom_level];
-    recompute_page_lines();
-    show_text();
-  }
+  int maxl = reader_max_line(g_ctx, CORPUS_WORK, g_book);
+  g_line_num += g_page_lines;
+  if (g_line_num > maxl)
+    g_line_num = maxl;
+  g_row_offset = 0;
+  show_text();
   return s;
 }
 
 static app_state_t on_read_L(app_state_t s) {
-  if (g_zoom_level > 0) {
-    g_zoom_level--;
-    g_font = g_fonts[g_zoom_level];
-    recompute_page_lines();
-    show_text();
-  }
+  g_line_num -= g_page_lines;
+  if (g_line_num < 1)
+    g_line_num = 1;
+  g_row_offset = 0;
+  show_text();
   return s;
 }
 

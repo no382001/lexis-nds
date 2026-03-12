@@ -33,7 +33,7 @@ void draw_bar(void) {
   int maxl = reader_max_line(g_ctx, CORPUS_WORK, g_book);
   char line1[80];
   snprintf(line1, sizeof(line1),
-           "Book %d/%d  [%d/%d]  %dpx  [L\xe2\x88\x92/R+]", g_book, g_num_books,
+           "Book %d/%d  [%d/%d]  %dpx  [L/R pg]", g_book, g_num_books,
            g_line_num, maxl, g_zoom_sizes[g_zoom_level]);
   tr_draw_text(bf, 6, y, line1, p->hl);
   y += lh;
@@ -404,6 +404,7 @@ app_state_t settings_go(void) {
     g_book_lines[g_book - 1] = (int16_t)g_line_num;
   g_book = g_set_book;
   g_line_num = g_set_line;
+  g_row_offset = 0;
   if (g_book >= 1 && g_book <= MAX_BOOKS)
     g_book_lines[g_book - 1] = (int16_t)g_line_num;
   recompute_page_lines();
